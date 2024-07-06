@@ -1,0 +1,143 @@
+plugins {
+	alias libs.plugins.quilt.loom
+	alias libs.plugins.chenille
+}
+
+archivesBaseName = project.archives_base_name
+version = "${project.version}+${libs.versions.minecraft.get()}"
+group = project.maven_group
+
+loom {
+	accessWidenerPath = file("src/main/resources/effective.accesswidener")
+}
+
+repositories {
+	mavenLocal()
+
+	// publishing
+	maven {
+		name = "CurseForge"
+		url = "https://minecraft.curseforge.com/api/maven"
+	}
+
+	// cloth config
+	maven { url "https://maven.shedaniel.me/" }
+
+	// satin
+	maven {
+		name = 'Ladysnake Mods'
+		url = 'https://maven.ladysnake.org/releases'
+		content {
+			includeGroup 'org.ladysnake'
+			includeGroup 'io.github.ladysnake'
+			includeGroup 'team.lodestar.lodestone'
+		}
+	}
+
+	// mod menu
+	maven {
+		name = 'TerraformersMC'
+		url = 'https://maven.terraformersmc.com/'
+	}
+
+	maven {
+		url 'https://jitpack.io'
+		content {
+			includeGroupByRegex('com\\.github\\..*')
+		}
+	}
+
+	maven {
+		name "modrinth"
+		url "https://api.modrinth.com/maven"
+		content {
+			includeGroup('maven.modrinth')
+		}
+	}
+
+	maven { url 'https://masa.dy.fi/maven' }
+
+	// mialee misc
+	maven { url "https://maven.willbl.dev/releases" }
+
+}
+
+// All the dependencies are declared at gradle/libs.version.toml and referenced with "libs.<id>"
+// See https://docs.gradle.org/current/userguide/platforms.html for information on how version catalogs work.
+dependencies {
+	minecraft libs.minecraft
+	mappings variantOf(libs.quilt.mappings) { classifier "intermediary-v2" }
+	// Replace the above line with the block below if you want to use Mojang mappings as your primary mappings, falling back on QM for parameters and Javadocs
+	/*
+	mappings loom.layered {
+		mappings "org.quiltmc:quilt-mappings:${libs.versions.quilt.mappings.get()}:intermediary-v2"
+		officialMojangMappings()
+	}
+	*/
+	modImplementation libs.quilt.loader
+
+	// QSL is not a complete API; You will need Quilted Fabric API to fill in the gaps.
+	// Quilted Fabric API will automatically pull in the correct QSL version.
+	modImplementation libs.bundles.quilt.quiltedFabricApi
+	// modImplementation libs.bundles.quilted.fabric.api // If you wish to use Fabric API's deprecated modules, you can replace the above line with this one
+
+	// mod menu
+	modLocalImplementation(libs.modmenu) {
+		transitive = false
+	}
+
+	// midnightlib
+	modImplementation(libs.midnightLib)
+	include(libs.midnightLib)
+
+	// satin
+	modImplementation(libs.satin) {
+		exclude group: 'net.fabricmc'
+	}
+	include(libs.satin)
+
+	// lodestone lib
+	modImplementation(libs.lodestoneLib) {
+		transitive = false
+	}
+	include(libs.lodestoneLib)
+
+	// iris and sodium
+	modLocalImplementation(libs.sodium)
+	modLocalImplementation(libs.iris)
+	runtimeOnly(libs.jcpp)
+	implementation(libs.glslTransformer)
+}
+
+chenille {
+	javaVersion = 21
+	configurePublishing {
+		mainArtifact = remapJar.archiveFile
+		withLadysnakeMaven()
+		withGithubRelease()
+		withModrinthRelease()
+	}
+}
+
+processResources {
+	inputs.property 'version', version
+
+	filesMatching('quilt.mod.json') {
+		expand "version": version
+	}
+}
+
+java {
+	withSourcesJar()
+
+	toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// If you plan to use a different file for the license, don't forget to change the file name here!
+jar {
+	from('LICENSE') {
+		rename { "${it}_${archivesBaseName}" }
+	}
+}
